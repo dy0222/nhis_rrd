@@ -1,4 +1,5 @@
 /*Matching*/
+/*Study Sample Code*/
 
 * Sample data, edited from a SAS example;
 * Split them into two datasets for this example.;
@@ -67,9 +68,6 @@ cards;
 56 0 34 170 1 0 1 0 0 156 0 34 187 2 1 0 1 0
 ;
 
-/*------------------------------------------------------------------------------------------------------------------------------------------------*/
-/*------------------------------------------------------------------------------------------------------------------------------------------------*/
-
 /*SIMPLE MATCH: EXACT MATCH ON AGE AND RACE*/
 PROC SQL;
 CREATE table controls_id
@@ -88,41 +86,6 @@ where (one.age=two.age and one.race=two.race);
 proc sort data=controls_id nodupkey;
 by control_id rand_num;
 run;
-
-/*------------------------------------------------------------------------------------------------------------------------------------------------*/
-
-/*«ÿ∫Ω*/
-proc sql;
-create table matching as
-select case_jk.PERSON_ID as case_id, control_jk.PERSON_ID as control_id,
-          case_jk.SEX as case_sex, control_jk.SEX as control_sex,
-		  case_jk.AGE_GROUP as case_age, control_jk.AGE_GROUP as control_age,
-		  case_jk.ENTRY_DATE as case_date, control_jk.ENTRY_DATE as control_date
-from sas_re.case_jk, sas_re.control_jk
-where ( case_jk.ENTRY_DATE = control_jk.ENTRY_DATE and
-             case_jk.SEX = control_jk.SEX and
-             case_jk.AGE_GROUP = control_jk.AGE_GROUP)
-; quit;
-
-proc sort data=matching nodupkey;
-by control_id;
-run;
-
-proc sort data=matching;
-by case_id;
-run;
-
-/*case_id = 1,610∏Ì*//*control_id = 78,761∏Ì*//*¿¸√º obs = 78,761*/
-proc sql;
-select count(distinct case_id) as case_id,
-          count(distinct control_id) as ctrl_id,
-		  count(*) as N_obs
-from matching;
-run;
-quit;
-
-/*------------------------------------------------------------------------------------------------------------------------------------------------*/
-/*------------------------------------------------------------------------------------------------------------------------------------------------*/
 
 /*SIMPLE MATCH: EXACT MATCH ON AGE AND RACE WITH FIXED NUMBER OF CONTROLS*/
 PROC SQL;
@@ -164,8 +127,40 @@ title2 'matched patients';
 run;
 
 /*------------------------------------------------------------------------------------------------------------------------------------------------*/
+/*------------------------------------------------------------------------------------------------------------------------------------------------*/
 
-/*«ÿ∫Ω*/
+/*RRD Matching Ï†ÅÏö©*/
+/*SIMPLE MATCH: EXACT MATCH ON AGE AND RACE*/
+proc sql;
+create table matching as
+select case_jk.PERSON_ID as case_id, control_jk.PERSON_ID as control_id,
+          case_jk.SEX as case_sex, control_jk.SEX as control_sex,
+		  case_jk.AGE_GROUP as case_age, control_jk.AGE_GROUP as control_age,
+		  case_jk.ENTRY_DATE as case_date, control_jk.ENTRY_DATE as control_date
+from sas_re.case_jk, sas_re.control_jk
+where ( case_jk.ENTRY_DATE = control_jk.ENTRY_DATE and
+             case_jk.SEX = control_jk.SEX and
+             case_jk.AGE_GROUP = control_jk.AGE_GROUP)
+; quit;
+
+proc sort data=matching nodupkey;
+by control_id;
+run;
+
+proc sort data=matching;
+by case_id;
+run;
+
+/*case_id = 1,610Î™Ö*//*control_id = 78,761Î™Ö*//*Ï†ÑÏ≤¥ obs = 78,761*/
+proc sql;
+select count(distinct case_id) as case_id,
+          count(distinct control_id) as ctrl_id,
+		  count(*) as N_obs
+from matching;
+run;
+quit;
+
+/*SIMPLE MATCH: EXACT MATCH ON AGE AND RACE WITH FIXED NUMBER OF CONTROLS*/
 proc sort data=matching;
 by case_id control_id;
 run;
@@ -188,10 +183,7 @@ proc sort data=not_enough;
 by case_id;
 run;
 
-
-
-
-/*case_id = 1,610∏Ì*//*control_id = 14,837∏Ì*//*¿¸√º obs = 14,837*/
+/*case_id = 1,610Î™Ö*//*control_id = 14,837Î™Ö*//*Ï†ÑÏ≤¥ obs = 14,837*/
 proc sql;
 select count(distinct case_id) as case_id,
           count(distinct control_id) as ctrl_id,
@@ -207,7 +199,7 @@ by case_id;
 if b_ then delete;
 run;
 
-/*case_id = 1,345∏Ì*//*control_id = 13,450∏Ì*//*¿¸√º obs = 13,450*/
+/*case_id = 1,345Î™Ö*//*control_id = 13,450Î™Ö*//*Ï†ÑÏ≤¥ obs = 13,450*/
 proc sql;
 select count(distinct case_id) as case_id,
           count(distinct control_id) as ctrl_id,
@@ -216,95 +208,8 @@ from matching_notenough;
 run;
 quit;
 
-/*SAS_RE ∂Û¿Ã∫Í∑Ø∏Æø° ¿˙¿Â*/
+/*SAS_RE ÎùºÏù¥Î∏åÎü¨Î¶¨Ïóê Ï†ÄÏû•*/
 data sas_re.matching_final;
 set matching_notenough;
 run;
 
-
-
-
-
-
-
-
-
-/*------------------------------------------------------------------------------------------------------------------------------------------------*/
-/*------------------------------------------------------------------------------------------------------------------------------------------------*/
-
-
-
-
-
-
-
-
-
-
-
-/*MATCHING ON RANGE OF VALUES*/
-data control2;
-set control;
-age_low=age-1;
-age_high=age+1;
-run;
-proc sql;
-create table controls_id as
-select
-one.ID as study_id,
-two.ID as control_id,
-one.age as study_age,
-two.age as control_age,
-one.race as study_race,
-two.race as control_race
-from study one, control2 two
-where ((one.age between two.age_low and two.age_high)
-and one.race=two.race);
-
-* count the number of control subjects for each case subject;
-proc sort data=controls_id;
-by study_id;
-run;
-data controls_id2(keep=study_id num_controls);
-set controls_id;
-by study_id;
-retain num_controls;
-if first.study_id then num_controls=1;
-else num_controls=num_controls+1;
-if last.study_id then output;
-run;
-* now merge the counts back into the dataset;
-data controls_id3;
-merge controls_id
-controls_id2;
-by study_id;
-run;
-* now order the rows to select the first matching control;
-proc sort data=controls_id3;
-by control_id num_controls rand_num;
-run;
-data controls_id4;
-set controls_id3;
-by control_id;
-if first.control_id;
-run;
-
-proc sort data=controls_id ;
-by study_id rand_num;
-run;
-data controls_id2 not_enough;
-set controls_id;
-by study_id ;
-retain num;
-if first.study_id then num=1;
-if num le 2 then do;
-output controls_id2;
-num=num+1;
-end;
-if last.study_id then do;
-if num le 2 then output not_enough;
-end;
-run;
-proc print data=controls_id2(obs=40);
-title2 'matched patients';
-run;
